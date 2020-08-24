@@ -38,96 +38,103 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 	}
+
 	for {
 		cnct, err := listen.Accept()
 		if err != nil {
 			continue //continue to receive request
 		}
+		defer cnct.Close()
 
 		var request requestJSON
+
 		json.NewDecoder(cnct).Decode(&request)
-		cnct.Close()
-		println("connection closed")
-		go executeJudge(request)
+
+		go func() {
+			cmdResult := execCmd(request)
+			
+			getErrorDetails(&cmdResult)
+
+			conn, err := net.Dial("tcp", HostPort)
+			if err != nil {
+				conn.Write([]byte("tcp connect error"))
+			}
+			defer conn.Close()
+
+			b, err := json.Marshal(cmdResult)
+			if err != nil {
+				conn.Write([]byte("marshal error"))
+			}
+
+			conn.Write(b)
+		}()
 	}
 }
 
-func readError(cmdResult *cmdResultJSON) {
+func execCmd(request requestJSON) cmdResultJSON {
+	var cmdResult cmdResultJSON
+	cmdResult.SessionID = request.SessionID
+
+	cmd := exec.Command("sh", "-c", request.Cmd)
+
+	start := time.Now()
+
+	err := cmd.Start()
+
+	if err != nil {
+		cmdResult.ErrMessage += err.Error() + "\n"
+	}
+
+	info, _ := pidusage.GetStat(cmd.Process.Pid)
+	cmdResult.MemUsage = info.Memory / 1024.0
+
+	done := make(chan error)
+
+	go func() { done <- cmd.Wait() }()
+
+	timeout := time.After(2 * time.Second)
+
+	select {
+	case <-timeout:
+		// Timeout happened first, kill the process and print a message.
+		cmd.Process.Kill()
+		cmdResult.ErrMessage += "Command timed out\n"
+	case err := <-done:
+		if err != nil {
+			cmdResult.ErrMessage += err.Error() + "\n"
+		}
+	}
+
+	end := time.Now()
+
+	cmdResult.Time = (end.Sub(start)).Milliseconds()
+
+	if err != nil || cmd.ProcessState.ExitCode() != 0 {
+		cmdResult.Result = false
+	} else {
+		cmdResult.Result = true
+	}
+
+	return cmdResult
+}
+
+func getErrorDetails(cmdResult *cmdResultJSON) {
 	stderrFp, err := os.Open("userStderr.txt")
 	if err != nil {
-		cmdResult.ErrMessage = err.Error()
+		cmdResult.ErrMessage += err.Error()
+		return
 	}
 
 	buf := make([]byte, 65536)
+
 	buf, err = ioutil.ReadAll(stderrFp)
+
 	if err != nil {
 		cmdResult.ErrMessage = err.Error()
 		return
 	}
 
 	cmdResult.ErrMessage += base64.StdEncoding.EncodeToString(buf) + "\n"
-	
+
 	stderrFp.Close()
-}
-
-func executeJudge(request requestJSON) {
-	var cmdResult cmdResultJSON
-	cmdResult.SessionID = request.SessionID
-	//exec.Command("sh", "-c", "ls > userStdout.txt").Run()
-	if request.Mode == "judge" {
-		cmd := exec.Command("sh", "-c", request.Cmd)
-		start := time.Now()
-		err := cmd.Start()
-		if err != nil {
-			fmt.Println("start exception")
-			cmdResult.ErrMessage += "start exception\n"
-		}
-		info, _ := pidusage.GetStat(cmd.Process.Pid)
-		cmdResult.MemUsage = info.Memory / 1024.0
-		done := make(chan error)
-		go func() { done <- cmd.Wait() }()
-		timeout := time.After(2 * time.Second)
-		select {
-		case <-timeout:
-			// Timeout happened first, kill the process and print a message.
-			cmd.Process.Kill()
-			fmt.Println("Command timed out")
-			cmdResult.ErrMessage += "Command timed out\n"
-		case err := <-done:
-			if err != nil {
-				fmt.Println("exception")
-				cmdResult.ErrMessage += "exception\n"
-			}
-		}
-		end := time.Now()
-		cmdResult.Time = (end.Sub(start)).Milliseconds()
-	
-		if err != nil || cmd.ProcessState.ExitCode() != 0 {
-			cmdResult.Result = false
-		} else {
-			cmdResult.Result = true
-		}
-	} else {
-		cmd := exec.Command("sh", "-c", request.Cmd)
-		err := cmd.Start()
-		if err != nil {
-			fmt.Println("start exception")
-			cmdResult.ErrMessage += "start exception\n"
-		}
-		cmd.Wait()
-		if err != nil || cmd.ProcessState.ExitCode() != 0 {
-			cmdResult.Result = false
-		} else {
-			cmdResult.Result = true
-		}
-	}
-	readError(&cmdResult)
-	conn, err := net.Dial("tcp", HostPort)
-	b, err := json.Marshal(cmdResult)
-	if err != nil {
-		conn.Write([]byte("err marshal"))
-	}
-	conn.Write(b)
-	conn.Close()
-
 }
