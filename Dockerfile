@@ -1,4 +1,5 @@
 FROM ubuntu:20.04
+
 #install compilers
 RUN \
     apt update && \
@@ -34,8 +35,6 @@ COPY go.mod .
 COPY go.sum .
 COPY main.go .
 RUN export PATH=$PATH:/usr/local/go/bin && go build -mod=mod -o .
-
-# COPY ./cafecoder-container-client .
 
 WORKDIR / 
 
