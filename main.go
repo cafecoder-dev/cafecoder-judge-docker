@@ -82,7 +82,7 @@ func execCmd(request requestJSON) cmdResultJSON {
 	err := cmd.Start()
 
 	if err != nil {
-		cmdResult.ErrMessage += err.Error() + "\n"
+		cmdResult.ErrMessage = err.Error()
 	}
 
 	info, _ := pidusage.GetStat(cmd.Process.Pid)
@@ -98,10 +98,9 @@ func execCmd(request requestJSON) cmdResultJSON {
 	case <-timeout:
 		// Timeout happened first, kill the process and print a message.
 		cmd.Process.Kill()
-		cmdResult.ErrMessage += "Command timed out\n"
 	case err := <-done:
 		if err != nil {
-			cmdResult.ErrMessage += err.Error() + "\n"
+			cmdResult.ErrMessage = err.Error()
 		}
 	}
 
@@ -109,7 +108,7 @@ func execCmd(request requestJSON) cmdResultJSON {
 
 	cmdResult.Time = (end.Sub(start)).Milliseconds()
 
-	if err != nil || cmd.ProcessState.ExitCode() != 0 {
+	if cmd.ProcessState.ExitCode() != 0 {
 		cmdResult.Result = false
 	} else {
 		cmdResult.Result = true
@@ -119,22 +118,21 @@ func execCmd(request requestJSON) cmdResultJSON {
 }
 
 func getErrorDetails(cmdResult *cmdResultJSON) {
-	stderrFp, err := os.Open("userStderr.txt")
+	stderrFp, err := os.Open("/userStderr.txt")
 	if err != nil {
-		cmdResult.ErrMessage += err.Error()
+		cmdResult.ErrMessage = err.Error()
 		return
 	}
 
 	buf := make([]byte, 65536)
 
 	buf, err = ioutil.ReadAll(stderrFp)
-
 	if err != nil {
-		cmdResult.ErrMessage = err.Error()
+		cmdResult.ErrMessage = err.Error()	
 		return
 	}
 
-	cmdResult.ErrMessage += base64.StdEncoding.EncodeToString(buf) + "\n"
+	cmdResult.ErrMessage = base64.StdEncoding.EncodeToString(buf) + "\n"
 
 	stderrFp.Close()
 }
