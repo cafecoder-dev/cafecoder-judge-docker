@@ -12,27 +12,14 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/cafecoder-dev/cafecoder-judge/src/types"
 )
 
 const (
 	ContainerPort = "0.0.0.0:8887"
 	HostPort      = "172.17.0.1:3344"
 )
-
-type cmdResultJSON struct {
-	SessionID  string  `json:"sessionID"`
-	Result     bool    `json:"result"`
-	ErrMessage string  `json:"errMessage"`
-	Time       int64   `json:"time"`
-	MemUsage   int `json:"memUsage"`
-}
-
-type requestJSON struct {
-	SessionID string `json:"sessionID"`
-	DirName   string `json:"dirName"`
-	Cmd       string `json:"cmd"`
-	Mode      string `json:"mode"` //Mode ... "judge" or "other"
-}
 
 func main() {
 	listen, err := net.Listen("tcp", ContainerPort) //from backend server
@@ -47,7 +34,7 @@ func main() {
 		}
 		defer cnct.Close()
 
-		var request requestJSON
+		var request types.RequestJSON
 
 		json.NewDecoder(cnct).Decode(&request)
 
@@ -88,8 +75,8 @@ func makeSh(cmd string) error {
 	return nil
 }
 
-func execCmd(request requestJSON) cmdResultJSON {
-	var cmdResult cmdResultJSON
+func execCmd(request types.RequestJSON) types.CmdResultJSON {
+	var cmdResult types.CmdResultJSON
 	cmdResult.SessionID = request.SessionID
 
 	if err := makeSh(request.Cmd); err != nil {
@@ -111,7 +98,7 @@ func execCmd(request requestJSON) cmdResultJSON {
 
 	select {
 	case <-timeout:
-		// Timeout happened first, kill the process and print a message.
+		// timeout からシグナルが送られてきたらプロセスをキルする
 		cmd.Process.Kill()
 	case err := <-done:
 		if err != nil {
@@ -121,7 +108,7 @@ func execCmd(request requestJSON) cmdResultJSON {
 
 	end := time.Now()
 
-	cmdResult.Time = (end.Sub(start)).Milliseconds()
+	cmdResult.Time = int((end.Sub(start)).Milliseconds())
 
 	memUsage, err := getMemUsage()
 	if err != nil {
@@ -153,7 +140,7 @@ func getMemUsage() (int, error) {
 	return mem, err
 }
 
-func getErrorDetails(cmdResult *cmdResultJSON) {
+func getErrorDetails(cmdResult *types.CmdResultJSON) {
 	stderrFp, err := os.Open("/userStderr.txt")
 	if err != nil {
 		cmdResult.ErrMessage = err.Error()
