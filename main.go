@@ -45,7 +45,9 @@ func main() {
 
 			getErrorDetails(&cmdResult)
 
-			cmdResult.IsOLE = getFileSize("userStdout.txt") > MaxFileSize
+			if request.Mode == "judge" {
+				cmdResult.IsOLE = getFileSize("userStdout.txt") > MaxFileSize
+			}
 
 			conn, err := net.Dial("tcp", HostPort)
 			if err != nil {
@@ -59,6 +61,8 @@ func main() {
 			}
 
 			conn.Write(b)
+
+			os.Remove("execCmd.sh")
 		}()
 	}
 }
