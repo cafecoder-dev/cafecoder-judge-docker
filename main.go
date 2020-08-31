@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net"
 	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 	"time"
-
-	"github.com/struCoder/pidusage"
 )
 
 const (
@@ -23,7 +24,7 @@ type cmdResultJSON struct {
 	Result     bool    `json:"result"`
 	ErrMessage string  `json:"errMessage"`
 	Time       int64   `json:"time"`
-	MemUsage   float64 `json:"memUsage"`
+	MemUsage   int `json:"memUsage"`
 }
 
 type requestJSON struct {
@@ -52,7 +53,7 @@ func main() {
 
 		go func() {
 			cmdResult := execCmd(request)
-			
+
 			getErrorDetails(&cmdResult)
 
 			conn, err := net.Dial("tcp", HostPort)
@@ -71,28 +72,42 @@ func main() {
 	}
 }
 
+func makeSh(cmd string) error {
+	f, err := os.Create("execCmd.sh")
+	if err != nil {
+		return err
+	}
+
+	f.WriteString("#!/bin/bash\n")
+	f.WriteString(cmd)
+
+	f.Close()
+
+	os.Chmod("execCmd.sh", 0777)
+
+	return nil
+}
+
 func execCmd(request requestJSON) cmdResultJSON {
 	var cmdResult cmdResultJSON
 	cmdResult.SessionID = request.SessionID
 
-	cmd := exec.Command("sh", "-c", request.Cmd)
+	if err := makeSh(request.Cmd); err != nil {
+		log.Println(err)
+		return cmdResult
+	}
+
+	cmd := exec.Command("sh", "-c", "/usr/bin/time -v ./execCmd.sh 2>&1 | grep -E 'Maximum' | awk '{ print $6}' > mem_usage.txt")
 
 	start := time.Now()
+	timeout := time.After(2 * time.Second)
 
-	err := cmd.Start()
-
-	if err != nil {
+	if err := cmd.Start(); err != nil {
 		cmdResult.ErrMessage = err.Error()
 	}
 
-	info, _ := pidusage.GetStat(cmd.Process.Pid)
-	cmdResult.MemUsage = info.Memory / 1024.0
-
 	done := make(chan error)
-
 	go func() { done <- cmd.Wait() }()
-
-	timeout := time.After(2 * time.Second)
 
 	select {
 	case <-timeout:
@@ -108,13 +123,34 @@ func execCmd(request requestJSON) cmdResultJSON {
 
 	cmdResult.Time = (end.Sub(start)).Milliseconds()
 
-	if cmd.ProcessState.ExitCode() != 0 {
-		cmdResult.Result = false
-	} else {
-		cmdResult.Result = true
+	memUsage, err := getMemUsage()
+	if err != nil {
+		log.Println(err)
 	}
+	cmdResult.MemUsage = memUsage
+
+	cmdResult.Result = cmd.ProcessState.ExitCode() == 0
 
 	return cmdResult
+}
+
+func getMemUsage() (int, error) {
+	fp, err := os.Open("mem_usage.txt")
+	if err != nil {
+		return 0, err
+	}
+	defer fp.Close()
+
+	buf, err := ioutil.ReadAll(fp)
+
+	tmp := strings.Replace(string(buf), "\n", "", -1)
+
+	mem, err := strconv.Atoi(tmp)
+	if err != nil {
+		return 0, err
+	}
+
+	return mem, err
 }
 
 func getErrorDetails(cmdResult *cmdResultJSON) {
@@ -128,7 +164,7 @@ func getErrorDetails(cmdResult *cmdResultJSON) {
 
 	buf, err = ioutil.ReadAll(stderrFp)
 	if err != nil {
-		cmdResult.ErrMessage = err.Error()	
+		cmdResult.ErrMessage = err.Error()
 		return
 	}
 
