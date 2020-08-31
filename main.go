@@ -19,6 +19,8 @@ import (
 const (
 	ContainerPort = "0.0.0.0:8887"
 	HostPort      = "172.17.0.1:3344"
+	// MaxFileSize = 1GiB
+	MaxFileSize = 1073741824
 )
 
 func main() {
@@ -42,6 +44,8 @@ func main() {
 			cmdResult := execCmd(request)
 
 			getErrorDetails(&cmdResult)
+
+			cmdResult.IsOLE = getFileSize("userStdout.txt") > MaxFileSize
 
 			conn, err := net.Dial("tcp", HostPort)
 			if err != nil {
@@ -84,7 +88,7 @@ func execCmd(request types.RequestJSON) types.CmdResultJSON {
 		return cmdResult
 	}
 
-	cmd := exec.Command("sh", "-c", "/usr/bin/time -v ./execCmd.sh 2>&1 | grep -E 'Maximum' | awk '{ print $6}' > mem_usage.txt")
+	cmd := exec.Command("sh", "-c", "/usr/bin/time -v ./execCmd.sh 2>&1 | grep -E 'Maximum' | awk '{ print $6 }' > mem_usage.txt")
 
 	start := time.Now()
 	timeout := time.After(2 * time.Second)
@@ -140,6 +144,7 @@ func getMemUsage() (int, error) {
 	return mem, err
 }
 
+// return (Bytes)
 func getErrorDetails(cmdResult *types.CmdResultJSON) {
 	stderrFp, err := os.Open("/userStderr.txt")
 	if err != nil {
@@ -158,4 +163,11 @@ func getErrorDetails(cmdResult *types.CmdResultJSON) {
 	cmdResult.ErrMessage = base64.StdEncoding.EncodeToString(buf) + "\n"
 
 	stderrFp.Close()
+}
+
+func getFileSize(name string) int64 {
+	file, _ := os.Open(name)
+	info, _ := file.Stat()
+
+	return info.Size()
 }
