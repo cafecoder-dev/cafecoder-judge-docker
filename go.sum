@@ -41,10 +41,8 @@ github.com/Microsoft/go-winio v0.4.15-0.20190919025122-fc70bd9a86b5 h1:ygIc8M6tr
 github.com/Microsoft/go-winio v0.4.15-0.20190919025122-fc70bd9a86b5/go.mod h1:tTuCMEN+UleMWgg9dVx4Hu52b1bJo+59jBh3ajtinzw=
 github.com/PuerkitoBio/goquery v1.5.1/go.mod h1:GsLWisAFVj4WgDibEWF4pvYnkVQBpKBKeU+7zCJoLcc=
 github.com/andybalholm/cascadia v1.1.0/go.mod h1:GsXiBklL0woXo1j/WYWtSYYC4ouU9PqHO0sqidkEA4Y=
-github.com/cafecoder-dev/cafecoder-judge v0.0.0-20200831062626-79844b169198 h1:hINohBD+7fId6iwOhLysM8dC92alZm5qPaTQIeY7rlk=
-github.com/cafecoder-dev/cafecoder-judge v0.0.0-20200831062626-79844b169198/go.mod h1:dg/5tjSXW6SJcXH7b34vRXRcJPw856ypfrbCMC/4Il8=
-github.com/cafecoder-dev/cafecoder-judge v0.0.0-20200831062729-c488fec32ddf h1:26t+gjR6vLzIiiwiF49ZhpYOTO1RYnii9rBPug9fOzs=
-github.com/cafecoder-dev/cafecoder-judge v0.0.0-20200831062729-c488fec32ddf/go.mod h1:dg/5tjSXW6SJcXH7b34vRXRcJPw856ypfrbCMC/4Il8=
+github.com/cafecoder-dev/cafecoder-judge v0.0.0-20200831133655-aae1b029eabd h1:MCiwREvAPQvfPrC0XnYuY7JbI6A2/nkEoW/Yg0WMQL8=
+github.com/cafecoder-dev/cafecoder-judge v0.0.0-20200831133655-aae1b029eabd/go.mod h1:dg/5tjSXW6SJcXH7b34vRXRcJPw856ypfrbCMC/4Il8=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
 github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=

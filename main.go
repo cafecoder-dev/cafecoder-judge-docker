@@ -19,9 +19,10 @@ import (
 const (
 	ContainerPort = "0.0.0.0:8887"
 	HostPort      = "172.17.0.1:3344"
-	// MaxFileSize = 1GiB
-	MaxFileSize = 1073741824
-)
+	// MaxFileSize = 200MB
+	MaxFileSize = 200000000
+	              
+)                 
 
 func main() {
 	listen, err := net.Listen("tcp", ContainerPort) //from backend server
@@ -45,9 +46,9 @@ func main() {
 
 			getErrorDetails(&cmdResult)
 
-			if request.Mode == "judge" {
-				cmdResult.IsOLE = getFileSize("userStdout.txt") > MaxFileSize
-			}
+			cmdResult.StdoutSize = getFileSize("userStdout.txt")
+
+			cmdResult.IsOLE = cmdResult.StdoutSize > MaxFileSize
 
 			conn, err := net.Dial("tcp", HostPort)
 			if err != nil {
@@ -63,6 +64,7 @@ func main() {
 			conn.Write(b)
 
 			os.Remove("execCmd.sh")
+
 		}()
 	}
 }
@@ -83,6 +85,7 @@ func makeSh(cmd string) error {
 	return nil
 }
 
+// 提出されたコードを実行する
 func execCmd(request types.RequestJSON) types.CmdResultJSON {
 	var cmdResult types.CmdResultJSON
 	cmdResult.SessionID = request.SessionID
@@ -93,9 +96,10 @@ func execCmd(request types.RequestJSON) types.CmdResultJSON {
 	}
 
 	cmd := exec.Command("sh", "-c", "/usr/bin/time -v ./execCmd.sh 2>&1 | grep -E 'Maximum' | awk '{ print $6 }' > mem_usage.txt")
+	//cmd := exec.Command("sh", "-c", "./execCmd.sh")
 
 	start := time.Now()
-	timeout := time.After(2 * time.Second)
+	timeout := time.After(2*time.Second + 200*time.Millisecond)
 
 	if err := cmd.Start(); err != nil {
 		cmdResult.ErrMessage = err.Error()
@@ -124,11 +128,16 @@ func execCmd(request types.RequestJSON) types.CmdResultJSON {
 	}
 	cmdResult.MemUsage = memUsage
 
-	cmdResult.Result = cmd.ProcessState.ExitCode() == 0
+	if cmd.ProcessState.ExitCode() == 0 {
+		cmdResult.Result = true
+	} else {
+		cmdResult.Result = false
+	}
 
 	return cmdResult
 }
 
+// mem_usage.txt にプロセスのピークメモリ量があるため、それを読み取ってくる
 func getMemUsage() (int, error) {
 	fp, err := os.Open("mem_usage.txt")
 	if err != nil {
@@ -169,9 +178,12 @@ func getErrorDetails(cmdResult *types.CmdResultJSON) {
 	stderrFp.Close()
 }
 
+// ファイル(userStdout.txt)のサイズを読む
 func getFileSize(name string) int64 {
-	file, _ := os.Open(name)
-	info, _ := file.Stat()
+	info, err := os.Stat(name)
+	if err != nil {
+		return 0
+	}
 
 	return info.Size()
 }
