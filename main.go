@@ -76,7 +76,8 @@ func makeSh(cmd string) error {
 	}
 
 	f.WriteString("#!/bin/bash\n")
-	f.WriteString(cmd)
+	f.WriteString(cmd+"\n")
+	f.WriteString("echo $? > exit_code.txt")
 
 	f.Close()
 
@@ -122,24 +123,24 @@ func execCmd(request types.RequestJSON) types.CmdResultJSON {
 
 	cmdResult.Time = int((end.Sub(start)).Milliseconds())
 
-	memUsage, err := getMemUsage()
+	memUsage, err := getFileNum("mem_usage.txt")
 	if err != nil {
 		log.Println(err)
 	}
 	cmdResult.MemUsage = memUsage
 
-	if cmd.ProcessState.ExitCode() == 0 {
-		cmdResult.Result = true
-	} else {
-		cmdResult.Result = false
+	exitCode, err := getFileNum("exit_code.txt")
+	if err != nil {
+		log.Println(err)
 	}
+	cmdResult.Result = exitCode == 0
 
 	return cmdResult
 }
 
-// mem_usage.txt にプロセスのピークメモリ量があるため、それを読み取ってくる
-func getMemUsage() (int, error) {
-	fp, err := os.Open("mem_usage.txt")
+// mem_usage.txt, ret_code.txt に数値が記述されているため、それを読み取ってくる
+func getFileNum(name string) (int, error) {
+	fp, err := os.Open(name)
 	if err != nil {
 		return 0, err
 	}
