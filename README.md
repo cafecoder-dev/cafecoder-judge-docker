@@ -1,4 +1,4 @@
-# cafecoder-container-client
+# cafecoder-judge-docker
 ホストからのリクエストを受け付ける。主に `docker build` のみ。
 
 # Usage
