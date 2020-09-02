@@ -3,7 +3,7 @@ FROM ubuntu:20.04
 #install compilers
 RUN \
     apt update && \
-    apt install software-properties-common apt-transport-https dirmngr curl wget time -y && \
+    apt install software-properties-common apt-transport-https dirmngr curl wget time iproute2 -y && \
     # C#(mono) install
     apt install gnupg ca-certificates -y && \
     yes | apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF && \

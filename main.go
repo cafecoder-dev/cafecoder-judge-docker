@@ -18,7 +18,7 @@ import (
 
 const (
 	ContainerPort = "0.0.0.0:8887"
-	HostPort      = "172.17.0.1:3344"
+	// HostPort      = "172.17.0.1:3344"
 	// MaxFileSize = 200MB
 	MaxFileSize = 200000000
 	              
@@ -50,7 +50,7 @@ func main() {
 
 			cmdResult.IsOLE = cmdResult.StdoutSize > MaxFileSize
 
-			conn, err := net.Dial("tcp", HostPort)
+			conn, err := net.Dial("tcp", getHostIP())
 			if err != nil {
 				conn.Write([]byte("tcp connect error"))
 			}
@@ -187,4 +187,9 @@ func getFileSize(name string) int64 {
 	}
 
 	return info.Size()
+}
+
+func getHostIP() string {
+	r, _ := exec.Command("sh", "-c", "ip route | awk 'NR==1 {print $3}'").Output()
+	return strings.TrimRight(string(r), "\n") + ":3344"
 }
