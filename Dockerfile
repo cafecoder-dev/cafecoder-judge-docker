@@ -26,9 +26,10 @@ RUN \
     # go install
     wget https://golang.org/dl/go1.14.7.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go1.14.7.linux-amd64.tar.gz && \
-    export PATH=$PATH:/usr/local/go/bin &&  \
     # Rust install
-    curl https://sh.rustup.rs -sSf | sh -s -- -y
+    curl https://sh.rustup.rs -sSf | sh -s -- -y && \
+    # Nim install
+    curl https://nim-lang.org/choosenim/init.sh -sSf | sh
 
 COPY vendor .
 COPY go.mod .
