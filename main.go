@@ -18,11 +18,8 @@ import (
 
 const (
 	ContainerPort = "0.0.0.0:8887"
-	// HostPort      = "172.17.0.1:3344"
-	// MaxFileSize = 200MB
-	MaxFileSize = 200000000
-	              
-)                 
+	MaxFileSize = 200000000 // 200MB
+)
 
 func main() {
 	listen, err := net.Listen("tcp", ContainerPort) //from backend server
@@ -44,10 +41,7 @@ func main() {
 		go func() {
 			cmdResult := execCmd(request)
 
-			getErrorDetails(&cmdResult)
-
 			cmdResult.StdoutSize = getFileSize("userStdout.txt")
-
 			cmdResult.IsOLE = cmdResult.StdoutSize > MaxFileSize
 
 			conn, err := net.Dial("tcp", getHostIP())
@@ -69,6 +63,7 @@ func main() {
 	}
 }
 
+// 実行するコマンドをシェルスクリプトに書き込む
 func makeSh(cmd string) error {
 	f, err := os.Create("execCmd.sh")
 	if err != nil {
@@ -76,7 +71,7 @@ func makeSh(cmd string) error {
 	}
 
 	f.WriteString("#!/bin/bash\n")
-	f.WriteString(cmd+"\n")
+	f.WriteString(cmd + "\n")
 	f.WriteString("echo $? > exit_code.txt")
 
 	f.Close()
@@ -88,7 +83,10 @@ func makeSh(cmd string) error {
 
 // 提出されたコードを実行する
 func execCmd(request types.RequestJSON) types.CmdResultJSON {
-	var cmdResult types.CmdResultJSON
+	var (
+		err error
+		cmdResult types.CmdResultJSON
+	)
 	cmdResult.SessionID = request.SessionID
 
 	if err := makeSh(request.Cmd); err != nil {
@@ -97,7 +95,6 @@ func execCmd(request types.RequestJSON) types.CmdResultJSON {
 	}
 
 	cmd := exec.Command("sh", "-c", "/usr/bin/time -v ./execCmd.sh 2>&1 | grep -E 'Maximum' | awk '{ print $6 }' > mem_usage.txt")
-	//cmd := exec.Command("sh", "-c", "./execCmd.sh")
 
 	start := time.Now()
 	timeout := time.After(2*time.Second + 200*time.Millisecond)
@@ -122,6 +119,11 @@ func execCmd(request types.RequestJSON) types.CmdResultJSON {
 	end := time.Now()
 
 	cmdResult.Time = int((end.Sub(start)).Milliseconds())
+
+	cmdResult.ErrMessage, err = getFileStrBase64("/userStderr.txt")
+	if err != nil {
+		log.Println(err)
+	}
 
 	memUsage, err := getFileNum("mem_usage.txt")
 	if err != nil {
@@ -158,25 +160,22 @@ func getFileNum(name string) (int, error) {
 	return mem, err
 }
 
-// return (Bytes)
-func getErrorDetails(cmdResult *types.CmdResultJSON) {
-	stderrFp, err := os.Open("/userStderr.txt")
+// return base64 encoded string
+func getFileStrBase64(name string) (string, error) {
+	stderrFp, err := os.Open(name)
 	if err != nil {
-		cmdResult.ErrMessage = err.Error()
-		return
+		return "", err
 	}
+	defer stderrFp.Close()
 
 	buf := make([]byte, 65536)
 
 	buf, err = ioutil.ReadAll(stderrFp)
 	if err != nil {
-		cmdResult.ErrMessage = err.Error()
-		return
+		return "", err
 	}
 
-	cmdResult.ErrMessage = base64.StdEncoding.EncodeToString(buf) + "\n"
-
-	stderrFp.Close()
+	return base64.StdEncoding.EncodeToString(buf) + "\n", nil
 }
 
 // ファイル(userStdout.txt)のサイズを読む
@@ -189,6 +188,8 @@ func getFileSize(name string) int64 {
 	return info.Size()
 }
 
+// Windows 環境だとホストIPがかわることがあったからそれを読み取ってくるようにした
+// しかし動かないどうして
 func getHostIP() string {
 	r, _ := exec.Command("sh", "-c", "ip route | awk 'NR==1 {print $3}'").Output()
 	return strings.TrimRight(string(r), "\n") + ":3344"
