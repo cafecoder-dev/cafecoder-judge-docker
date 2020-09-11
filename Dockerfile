@@ -45,6 +45,12 @@ RUN \
     wget earlgray283.github.io/download/atcoder.zip && \
     unzip atcoder.zip
 
+# restrict the number of user's process 
+RUN \
+    apt install sudo -y && \
+    useradd cafecoder && \
+    echo 'cafecoder hard nproc 4096' >> /etc/security/limits.conf
+
 WORKDIR / 
 
 ENTRYPOINT ["./cafecoder-container-client"]
