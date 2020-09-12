@@ -5,7 +5,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 #install compilers
 RUN \
     apt update && \
-    apt install software-properties-common apt-transport-https dirmngr curl wget time iproute2 build-essential -y && \
+    apt install software-properties-common apt-transport-https dirmngr curl wget time iproute2 build-essential sudo unzip -y && \
     # C#(mono) install
     apt install gnupg ca-certificates -y && \
     yes | apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF && \
@@ -41,13 +41,11 @@ RUN export PATH=$PATH:/usr/local/go/bin && go build -mod=mod -o .
 
 # download ACL
 RUN \
-    apt install unzip && \
     wget earlgray283.github.io/download/atcoder.zip && \
     unzip atcoder.zip
 
 # restrict the number of user's process 
 RUN \
-    apt install sudo -y && \
     useradd --create-home cafecoder && \
     echo 'cafecoder hard nproc 4096' >> /etc/security/limits.conf && \
     chmod -R 777 /home && \
