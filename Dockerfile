@@ -1,9 +1,11 @@
 FROM ubuntu:20.04
 
+ENV DEBIAN_FRONTEND=noninteractive
+
 #install compilers
 RUN \
     apt update && \
-    apt install software-properties-common apt-transport-https dirmngr curl wget time iproute2 -y && \
+    apt install software-properties-common apt-transport-https dirmngr curl wget time iproute2 build-essential -y && \
     # C#(mono) install
     apt install gnupg ca-certificates -y && \
     yes | apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF && \
@@ -26,15 +28,30 @@ RUN \
     # go install
     wget https://golang.org/dl/go1.14.7.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go1.14.7.linux-amd64.tar.gz && \
-    export PATH=$PATH:/usr/local/go/bin &&  \
     # Rust install
-    curl https://sh.rustup.rs -sSf | sh -s -- -y
+    curl https://sh.rustup.rs -sSf | sh -s -- -y && \
+    # Nim install
+    curl https://nim-lang.org/choosenim/init.sh -sSf | sh -s -- -y
 
 COPY vendor .
 COPY go.mod .
 COPY go.sum .
 COPY main.go .
 RUN export PATH=$PATH:/usr/local/go/bin && go build -mod=mod -o .
+
+# download ACL
+RUN \
+    apt install unzip && \
+    wget earlgray283.github.io/download/atcoder.zip && \
+    unzip atcoder.zip
+
+# restrict the number of user's process 
+RUN \
+    apt install sudo -y && \
+    useradd --create-home cafecoder && \
+    echo 'cafecoder hard nproc 4096' >> /etc/security/limits.conf && \
+    chmod -R 777 /home && \
+    mkdir Main -m 777
 
 WORKDIR / 
 
