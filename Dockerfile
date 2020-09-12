@@ -48,8 +48,10 @@ RUN \
 # restrict the number of user's process 
 RUN \
     apt install sudo -y && \
-    useradd cafecoder && \
-    echo 'cafecoder hard nproc 4096' >> /etc/security/limits.conf
+    useradd --create-home cafecoder && \
+    echo 'cafecoder hard nproc 4096' >> /etc/security/limits.conf && \
+    chmod -R 777 /home && \
+    mkdir Main -m 777
 
 WORKDIR / 
 

@@ -39,6 +39,7 @@ func main() {
 		json.NewDecoder(cnct).Decode(&request)
 
 		go func() {
+			os.Chmod("/", 0777)
 			cmdResult := execCmd(request)
 
 			cmdResult.StdoutSize = getFileSize("userStdout.txt")
