@@ -2,7 +2,7 @@ FROM ubuntu:20.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-#install compilers
+# install compilers
 RUN \
     apt update && \
     apt install software-properties-common apt-transport-https dirmngr curl wget time iproute2 build-essential sudo unzip -y && \
@@ -31,11 +31,16 @@ RUN \
     # Rust install
     curl https://sh.rustup.rs -sSf | sh -s -- -y && \
     # Nim install
-    curl https://nim-lang.org/choosenim/init.sh -sSf | sh -s -- -y && \
-    # download ACL
-    wget earlgray283.github.io/download/atcoder.zip && \
-    unzip atcoder.zip && \
-    # restrict the number of process
+    curl https://nim-lang.org/choosenim/init.sh -sSf | sh -s -- -y
+    
+# install external libraries
+RUN \
+    wget https://raw.githubusercontent.com/MikeMirzayanov/testlib/master/testlib.h && \
+    wget https://github.com/atcoder/ac-library/releases/download/v1.0/ac-library.zip && \
+    unzip ac-library.zip
+
+# system
+RUN \
     useradd --create-home cafecoder && \
     echo 'cafecoder hard nproc 4096' >> /etc/security/limits.conf && \
     chmod -R 777 /home && \
@@ -46,8 +51,6 @@ COPY go.mod .
 COPY go.sum .
 COPY main.go .
 RUN export PATH=$PATH:/usr/local/go/bin && go build -mod=mod -o .
-
-RUN wget earlgray283.github.io/download/testlib.h
 
 WORKDIR / 
 
