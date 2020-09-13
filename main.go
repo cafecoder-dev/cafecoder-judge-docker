@@ -72,7 +72,9 @@ func makeSh(cmd string) error {
 	}
 
 	f.WriteString("#!/bin/bash\n")
-	f.WriteString("sudo -u cafecoder " + cmd + "\n")
+	f.WriteString("export PATH=$PATH:/usr/local/go/bin\n")
+	f.WriteString("export PATH=\"$HOME/.cargo/bin:$PATH\"\n")
+	f.WriteString(cmd + "\n")
 	f.WriteString("echo $? > exit_code.txt")
 
 	f.Close()

@@ -31,7 +31,15 @@ RUN \
     # Rust install
     curl https://sh.rustup.rs -sSf | sh -s -- -y && \
     # Nim install
-    curl https://nim-lang.org/choosenim/init.sh -sSf | sh -s -- -y
+    curl https://nim-lang.org/choosenim/init.sh -sSf | sh -s -- -y && \
+    # download ACL
+    wget earlgray283.github.io/download/atcoder.zip && \
+    unzip atcoder.zip && \
+    # restrict the number of process
+    useradd --create-home cafecoder && \
+    echo 'cafecoder hard nproc 4096' >> /etc/security/limits.conf && \
+    chmod -R 777 /home && \
+    mkdir Main -m 777
 
 COPY vendor .
 COPY go.mod .
@@ -39,17 +47,7 @@ COPY go.sum .
 COPY main.go .
 RUN export PATH=$PATH:/usr/local/go/bin && go build -mod=mod -o .
 
-# download ACL
-RUN \
-    wget earlgray283.github.io/download/atcoder.zip && \
-    unzip atcoder.zip
-
-# restrict the number of user's process 
-RUN \
-    useradd --create-home cafecoder && \
-    echo 'cafecoder hard nproc 4096' >> /etc/security/limits.conf && \
-    chmod -R 777 /home && \
-    mkdir Main -m 777
+RUN wget earlgray283.github.io/download/testlib.h
 
 WORKDIR / 
 
