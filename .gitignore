@@ -1,2 +1,4 @@
 /vendor
 /cafecoder-container-client
+/key.json
+/.env

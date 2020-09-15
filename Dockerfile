@@ -47,6 +47,11 @@ RUN \
     mkdir Main -m 777
 
 COPY vendor .
+COPY key.json .
+COPY .env .
+COPY gcplib .
+COPY types .
+COPY util .
 COPY go.mod .
 COPY go.sum .
 COPY main.go .

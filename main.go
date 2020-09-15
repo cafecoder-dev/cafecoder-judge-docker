@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -10,15 +11,19 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
-	"strings"
 	"time"
 
+	"github.com/cafecoder-dev/cafecoder-container-client/gcplib"
+	"github.com/cafecoder-dev/cafecoder-container-client/util"
+	"github.com/cafecoder-dev/cafecoder-judge/src/checklib"
 	"github.com/cafecoder-dev/cafecoder-judge/src/types"
+	//mytypes "github.com/cafecoder-dev/cafecoder-container-client/types"
 )
 
 const (
 	ContainerPort = "0.0.0.0:8887"
-	MaxFileSize = 200000000 // 200MB
+	MaxFileSize   = 200000000 // 200MB
+	MaxMemUsage   = 1024000
 )
 
 func main() {
@@ -34,38 +39,59 @@ func main() {
 		}
 		defer cnct.Close()
 
-		var request types.RequestJSON
-
-		json.NewDecoder(cnct).Decode(&request)
-
 		go func() {
-			os.Chmod("/", 0777)
-			cmdResult := execCmd(request)
+			var (
+				request types.RequestJSON
+				ctx     context.Context = context.Background()
+			)
 
-			cmdResult.StdoutSize = getFileSize("userStdout.txt")
-			cmdResult.IsOLE = cmdResult.StdoutSize > MaxFileSize
+			json.NewDecoder(cnct).Decode(&request)
 
-			conn, err := net.Dial("tcp", getHostIP())
-			if err != nil {
-				conn.Write([]byte("tcp connect error"))
+			cmdResult := types.CmdResultJSON{
+				SessionID: request.SessionID,
 			}
-			defer conn.Close()
+
+			os.Chmod("/", 0777)
+
+			switch request.Mode {
+			case "compile":
+				cmdResult, err = execCmd(request)
+				if err != nil {
+					cmdResult.ErrMessage += base64.StdEncoding.EncodeToString([]byte(err.Error())) + "\n"
+				}
+			case "judge":
+				cmdResult = types.CmdResultJSON{SessionID: request.SessionID, Result: true}
+				if err := tryTestcase(ctx, request); err != nil {
+					cmdResult.ErrMessage += base64.StdEncoding.EncodeToString([]byte(err.Error())) + "\n"
+					cmdResult.Result = false
+				}
+
+			case "download":
+				cmdResult = types.CmdResultJSON{SessionID: request.SessionID, Result: true}
+				if err = gcplib.DownloadSourceCode(ctx, request.CodePath, request.Filename); err != nil {
+					cmdResult.ErrMessage += base64.StdEncoding.EncodeToString([]byte(err.Error())) + "\n"
+					cmdResult.Result = false
+				}
+			}
 
 			b, err := json.Marshal(cmdResult)
 			if err != nil {
-				conn.Write([]byte("marshal error"))
+				cmdResult.ErrMessage += err.Error() + "\n"
 			}
 
+			conn, err := net.Dial("tcp", util.GetHostIP())
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer conn.Close()
+
 			conn.Write(b)
-
-			os.Remove("execCmd.sh")
-
 		}()
 	}
 }
 
 // 実行するコマンドをシェルスクリプトに書き込む
-func makeSh(cmd string) error {
+func createSh(cmd string) error {
 	f, err := os.Create("execCmd.sh")
 	if err != nil {
 		return err
@@ -79,22 +105,103 @@ func makeSh(cmd string) error {
 
 	f.Close()
 
+	for {
+		_, err := os.Stat("execCmd.sh")
+		if err == nil {
+			break
+		}
+	}
+
 	os.Chmod("execCmd.sh", 0777)
 
 	return nil
 }
 
-// 提出されたコードを実行する
-func execCmd(request types.RequestJSON) types.CmdResultJSON {
-	var (
-		err error
-		cmdResult types.CmdResultJSON
-	)
-	cmdResult.SessionID = request.SessionID
+func tryTestcase(ctx context.Context, request types.RequestJSON) error {
+	submitIDint64, err := strconv.ParseInt(request.SessionID, 10, 64)
 
-	if err := makeSh(request.Cmd); err != nil {
-		log.Println(err)
-		return cmdResult
+	testcases, err := gcplib.GetTestcases(ctx, request.ProblemID)
+	if err != nil {
+		return err
+	}
+
+	for _, elem := range testcases {
+		testcaseResults := types.TestcaseResultsGORM{SubmitID: submitIDint64, TestcaseID: elem.TestcaseID}
+
+		file, _ := os.Create("./testcase.txt")
+		file.Write(elem.Input)
+		file.Close()
+
+		res, err := execCmd(request)
+		if err != nil {
+			return err
+		}
+
+		soutput, err := ioutil.ReadFile("userStdout.txt")
+		if err != nil {
+			return err
+		}
+
+		testcaseResults.Status, err = judging(res, string(soutput), string(elem.Output))
+		if err != nil {
+			return err
+		}
+
+		testcaseResults.ExecutionTime = res.Time
+		testcaseResults.ExecutionMemory = res.MemUsage
+		testcaseResults.CreatedAt = util.TimeToString(time.Now())
+		testcaseResults.UpdatedAt = util.TimeToString(time.Now())
+
+		b, err := json.Marshal(testcaseResults)
+		if err != nil {
+			return err
+		}
+
+		conn, err := net.Dial("tcp", util.GetHostIP())
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer conn.Close()
+
+		conn.Write(b)
+	}
+
+	return nil
+}
+
+func judging(cmdres types.CmdResultJSON, submitOutput string, testcaseOutput string) (string, error) {
+	if cmdres.IsPLE {
+		return "PLE", nil
+	}
+	if !cmdres.Result {
+		return "RE", nil
+	}
+	if !checklib.Normal(submitOutput, testcaseOutput) {
+		return "WA", nil
+	}
+	if cmdres.StdoutSize > MaxFileSize {
+		return "OLE", nil
+	}
+	if cmdres.MemUsage > MaxMemUsage {
+		return "MLE", nil
+	}
+	if cmdres.Time > 2000 {
+		return "TLE", nil
+	}
+	return "AC", nil
+}
+
+// request.Cmd を実行する
+func execCmd(request types.RequestJSON) (types.CmdResultJSON, error) {
+	var (
+		err       error
+		cmdResult types.CmdResultJSON = types.CmdResultJSON{
+			SessionID: request.SessionID,
+		}
+	)
+
+	if err := createSh(request.Cmd); err != nil {
+		return cmdResult, err
 	}
 
 	cmd := exec.Command("sh", "-c", "/usr/bin/time -v ./execCmd.sh 2>&1 | grep -E 'Maximum' | awk '{ print $6 }' > mem_usage.txt")
@@ -103,7 +210,7 @@ func execCmd(request types.RequestJSON) types.CmdResultJSON {
 	timeout := time.After(2*time.Second + 200*time.Millisecond)
 
 	if err := cmd.Start(); err != nil {
-		cmdResult.ErrMessage = err.Error()
+		return cmdResult, err
 	}
 
 	done := make(chan error)
@@ -115,85 +222,36 @@ func execCmd(request types.RequestJSON) types.CmdResultJSON {
 		cmd.Process.Kill()
 	case err := <-done:
 		if err != nil {
-			cmdResult.ErrMessage = err.Error()
+			return cmdResult, err
 		}
 	}
-
 	end := time.Now()
 
 	cmdResult.Time = int((end.Sub(start)).Milliseconds())
 
-	cmdResult.ErrMessage, err = getFileStrBase64("/userStderr.txt")
+	cmdResult.ErrMessage, err = util.GetFileStrBase64("/userStderr.txt")
 	if err != nil {
-		log.Println(err)
+		return cmdResult, err
 	}
 
-	memUsage, err := getFileNum("mem_usage.txt")
+	cmdResult.MemUsage, err = util.GetFileNum("mem_usage.txt")
 	if err != nil {
-		log.Println(err)
+		return cmdResult, err
 	}
-	cmdResult.MemUsage = memUsage
 
-	exitCode, err := getFileNum("exit_code.txt")
+	exitCode, err := util.GetFileNum("exit_code.txt")
 	if err != nil {
-		log.Println(err)
+		return cmdResult, err
 	}
 	cmdResult.Result = exitCode == 0
 
-	return cmdResult
-}
+	cmdResult.StdoutSize = util.GetFileSize("userStdout.txt")
 
-// mem_usage.txt, ret_code.txt に数値が記述されているため、それを読み取ってくる
-func getFileNum(name string) (int, error) {
-	fp, err := os.Open(name)
-	if err != nil {
-		return 0, err
-	}
-	defer fp.Close()
+	os.Remove("execCmd.sh")
+	os.Remove("userStderr.txt")
+	os.Remove("userStdout.txt")
+	os.Remove("mem_usage.txt")
+	os.Remove("exit_code.txt")
 
-	buf, err := ioutil.ReadAll(fp)
-
-	tmp := strings.Replace(string(buf), "\n", "", -1)
-
-	mem, err := strconv.Atoi(tmp)
-	if err != nil {
-		return 0, err
-	}
-
-	return mem, err
-}
-
-// return base64 encoded string
-func getFileStrBase64(name string) (string, error) {
-	stderrFp, err := os.Open(name)
-	if err != nil {
-		return "", err
-	}
-	defer stderrFp.Close()
-
-	buf := make([]byte, 65536)
-
-	buf, err = ioutil.ReadAll(stderrFp)
-	if err != nil {
-		return "", err
-	}
-
-	return base64.StdEncoding.EncodeToString(buf) + "\n", nil
-}
-
-// ファイル(userStdout.txt)のサイズを読む
-func getFileSize(name string) int64 {
-	info, err := os.Stat(name)
-	if err != nil {
-		return 0
-	}
-
-	return info.Size()
-}
-
-// Windows 環境だとホストIPがかわることがあったからそれを読み取ってくるようにした
-// しかし動かないどうして
-func getHostIP() string {
-	r, _ := exec.Command("sh", "-c", "ip route | awk 'NR==1 {print $3}'").Output()
-	return strings.TrimRight(string(r), "\n") + ":3344"
+	return cmdResult, nil
 }
