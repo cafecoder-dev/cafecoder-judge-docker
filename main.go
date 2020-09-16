@@ -17,7 +17,6 @@ import (
 	"github.com/cafecoder-dev/cafecoder-container-client/util"
 	"github.com/cafecoder-dev/cafecoder-judge/src/checklib"
 	"github.com/cafecoder-dev/cafecoder-judge/src/types"
-	//mytypes "github.com/cafecoder-dev/cafecoder-container-client/types"
 )
 
 const (
@@ -51,6 +50,10 @@ func main() {
 				SessionID: request.SessionID,
 			}
 
+			f, _ := os.Create("request")
+			f.Write([]byte(fmt.Sprintln(request)))
+			f.Close()
+
 			os.Chmod("/", 0777)
 
 			switch request.Mode {
@@ -60,7 +63,6 @@ func main() {
 					cmdResult.ErrMessage += base64.StdEncoding.EncodeToString([]byte(err.Error())) + "\n"
 				}
 			case "judge":
-				cmdResult = types.CmdResultJSON{SessionID: request.SessionID, Result: true}
 				cmdResult, err = tryTestcase(ctx, request)
 				if err != nil {
 					cmdResult.ErrMessage += base64.StdEncoding.EncodeToString([]byte(err.Error())) + "\n"
@@ -74,6 +76,10 @@ func main() {
 					cmdResult.Result = false
 				}
 			}
+
+			f, _ = os.Create("check")
+			f.Write([]byte(fmt.Sprintln(cmdResult)))
+			f.Close()
 
 			b, err := json.Marshal(cmdResult)
 			if err != nil {
@@ -137,12 +143,7 @@ func tryTestcase(ctx context.Context, request types.RequestJSON) (types.CmdResul
 		return types.CmdResultJSON{}, err
 	}
 
-	userOutput, err := ioutil.ReadFile("userStdout.txt")
-	if err != nil {
-		return types.CmdResultJSON{}, err
-	}
-
-	testcaseResults.Status, err = judging(res, string(userOutput), string(testcaseOutput))
+	testcaseResults.Status, err = judging(res, string(testcaseOutput))
 	if err != nil {
 		return types.CmdResultJSON{}, err
 	}
@@ -154,18 +155,24 @@ func tryTestcase(ctx context.Context, request types.RequestJSON) (types.CmdResul
 
 	res.TestcaseResults = testcaseResults
 
-
 	return res, nil
 }
 
-func judging(cmdres types.CmdResultJSON, submitOutput string, testcaseOutput string) (string, error) {
+func judging(cmdres types.CmdResultJSON, testcaseOutput string) (string, error) {
 	if cmdres.IsPLE {
 		return "PLE", nil
 	}
 	if !cmdres.Result {
 		return "RE", nil
 	}
-	if !checklib.Normal(submitOutput, testcaseOutput) {
+	if cmdres.Time > 2000 {
+		return "TLE", nil
+	}
+	userOutput, err := ioutil.ReadFile("userStdout.txt")
+	if err != nil {
+		return "IE", err
+	}
+	if !checklib.Normal(string(userOutput), testcaseOutput) {
 		return "WA", nil
 	}
 	if cmdres.StdoutSize > MaxFileSize {
@@ -174,9 +181,7 @@ func judging(cmdres types.CmdResultJSON, submitOutput string, testcaseOutput str
 	if cmdres.MemUsage > MaxMemUsage {
 		return "MLE", nil
 	}
-	if cmdres.Time > 2000 {
-		return "TLE", nil
-	}
+
 	return "AC", nil
 }
 
@@ -223,24 +228,12 @@ func execCmd(request types.RequestJSON) (types.CmdResultJSON, error) {
 		return cmdResult, err
 	}
 
-	cmdResult.MemUsage, err = util.GetFileNum("mem_usage.txt")
-	if err != nil {
-		return cmdResult, err
-	}
+	cmdResult.MemUsage, _ = util.GetFileNum("mem_usage.txt")
+	exitCode, _ := util.GetFileNum("exit_code.txt")
 
-	exitCode, err := util.GetFileNum("exit_code.txt")
-	if err != nil {
-		return cmdResult, err
-	}
 	cmdResult.Result = exitCode == 0
 
 	cmdResult.StdoutSize = util.GetFileSize("userStdout.txt")
-
-	os.Remove("execCmd.sh")
-	os.Remove("userStderr.txt")
-	os.Remove("userStdout.txt")
-	os.Remove("mem_usage.txt")
-	os.Remove("exit_code.txt")
 
 	return cmdResult, nil
 }

@@ -26,8 +26,8 @@ RUN \
     # Python3 install
     apt install python3 -y && \
     # go install
-    wget https://golang.org/dl/go1.14.7.linux-amd64.tar.gz && \
-    tar -C /usr/local -xzf go1.14.7.linux-amd64.tar.gz && \
+    wget https://golang.org/dl/go1.15.2.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf go1.15.2.linux-amd64.tar.gz && \
     # Rust install
     curl https://sh.rustup.rs -sSf | sh -s -- -y && \
     # Nim install
@@ -46,16 +46,15 @@ RUN \
     chmod -R 777 /home && \
     mkdir Main -m 777
 
-COPY vendor .
+COPY vendor /vendor
 COPY key.json .
 COPY .env .
-COPY gcplib .
-COPY types .
-COPY util .
+COPY gcplib /gcplib
+COPY util /util
 COPY go.mod .
 COPY go.sum .
 COPY main.go .
-RUN export PATH=$PATH:/usr/local/go/bin && go build -mod=mod -o .
+RUN export PATH=$PATH:/usr/local/go/bin && go build -mod=vendor -o .
 
 WORKDIR / 
 
