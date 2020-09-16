@@ -4,12 +4,12 @@ go 1.15
 
 require (
 	cloud.google.com/go/storage v1.11.0
-	github.com/cafecoder-dev/cafecoder-judge v0.0.0-20200915123744-6b8dbbec81af
+	github.com/cafecoder-dev/cafecoder-judge v0.0.0-20200916054823-495264412c45
+	github.com/containerd/containerd v1.4.1 // indirect
 	golang.org/x/net v0.0.0-20200904194848-62affa334b73 // indirect
-	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43 // indirect
-	golang.org/x/sys v0.0.0-20200915084602-288bc346aa39 // indirect
-	golang.org/x/tools v0.0.0-20200915031644-64986481280e // indirect
-	google.golang.org/api v0.31.0
-	google.golang.org/genproto v0.0.0-20200914193844-75d14daec038 // indirect
+	golang.org/x/sys v0.0.0-20200916030750-2334cc1a136f // indirect
+	golang.org/x/tools v0.0.0-20200915201639-f4cefd1cb5ba // indirect
+	google.golang.org/api v0.32.0
+	google.golang.org/genproto v0.0.0-20200915202801-9f80d0600517 // indirect
 	google.golang.org/grpc v1.32.0 // indirect
 )

@@ -61,7 +61,8 @@ func main() {
 				}
 			case "judge":
 				cmdResult = types.CmdResultJSON{SessionID: request.SessionID, Result: true}
-				if err := tryTestcase(ctx, request); err != nil {
+				cmdResult, err = tryTestcase(ctx, request)
+				if err != nil {
 					cmdResult.ErrMessage += base64.StdEncoding.EncodeToString([]byte(err.Error())) + "\n"
 					cmdResult.Result = false
 				}
@@ -117,56 +118,44 @@ func createSh(cmd string) error {
 	return nil
 }
 
-func tryTestcase(ctx context.Context, request types.RequestJSON) error {
+func tryTestcase(ctx context.Context, request types.RequestJSON) (types.CmdResultJSON, error) {
 	submitIDint64, err := strconv.ParseInt(request.SessionID, 10, 64)
 
-	testcases, err := gcplib.GetTestcases(ctx, request.ProblemID)
+	testcaseInput, testcaseOutput, err := gcplib.DownloadTestcase(ctx, request.Problem.UUID, request.Testcase.Name)
 	if err != nil {
-		return err
+		return types.CmdResultJSON{}, err
 	}
 
-	for _, elem := range testcases {
-		testcaseResults := types.TestcaseResultsGORM{SubmitID: submitIDint64, TestcaseID: elem.TestcaseID}
+	testcaseResults := types.TestcaseResultsGORM{SubmitID: submitIDint64, TestcaseID: request.Testcase.TestcaseID}
 
-		file, _ := os.Create("./testcase.txt")
-		file.Write(elem.Input)
-		file.Close()
+	file, _ := os.Create("./testcase.txt")
+	file.Write(testcaseInput)
+	file.Close()
 
-		res, err := execCmd(request)
-		if err != nil {
-			return err
-		}
-
-		soutput, err := ioutil.ReadFile("userStdout.txt")
-		if err != nil {
-			return err
-		}
-
-		testcaseResults.Status, err = judging(res, string(soutput), string(elem.Output))
-		if err != nil {
-			return err
-		}
-
-		testcaseResults.ExecutionTime = res.Time
-		testcaseResults.ExecutionMemory = res.MemUsage
-		testcaseResults.CreatedAt = util.TimeToString(time.Now())
-		testcaseResults.UpdatedAt = util.TimeToString(time.Now())
-
-		b, err := json.Marshal(testcaseResults)
-		if err != nil {
-			return err
-		}
-
-		conn, err := net.Dial("tcp", util.GetHostIP())
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer conn.Close()
-
-		conn.Write(b)
+	res, err := execCmd(request)
+	if err != nil {
+		return types.CmdResultJSON{}, err
 	}
 
-	return nil
+	userOutput, err := ioutil.ReadFile("userStdout.txt")
+	if err != nil {
+		return types.CmdResultJSON{}, err
+	}
+
+	testcaseResults.Status, err = judging(res, string(userOutput), string(testcaseOutput))
+	if err != nil {
+		return types.CmdResultJSON{}, err
+	}
+
+	testcaseResults.ExecutionTime = res.Time
+	testcaseResults.ExecutionMemory = res.MemUsage
+	testcaseResults.CreatedAt = util.TimeToString(time.Now())
+	testcaseResults.UpdatedAt = util.TimeToString(time.Now())
+
+	res.TestcaseResults = testcaseResults
+
+
+	return res, nil
 }
 
 func judging(cmdres types.CmdResultJSON, submitOutput string, testcaseOutput string) (string, error) {
