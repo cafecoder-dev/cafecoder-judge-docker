@@ -50,10 +50,6 @@ func main() {
 				SessionID: request.SessionID,
 			}
 
-			f, _ := os.Create("request")
-			f.Write([]byte(fmt.Sprintln(request)))
-			f.Close()
-
 			os.Chmod("/", 0777)
 
 			switch request.Mode {
@@ -76,10 +72,6 @@ func main() {
 					cmdResult.Result = false
 				}
 			}
-
-			f, _ = os.Create("check")
-			f.Write([]byte(fmt.Sprintln(cmdResult)))
-			f.Close()
 
 			b, err := json.Marshal(cmdResult)
 			if err != nil {
