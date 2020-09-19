@@ -28,7 +28,7 @@ const (
 func main() {
 	listen, err := net.Listen("tcp", ContainerPort) //from backend server
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
 	}
 
 	for {
