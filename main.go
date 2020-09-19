@@ -184,6 +184,7 @@ func execCmd(request types.RequestJSON) (types.CmdResultJSON, error) {
 		cmdResult types.CmdResultJSON = types.CmdResultJSON{
 			SessionID: request.SessionID,
 		}
+		timeout <-chan time.Time
 	)
 
 	if err := createSh(request.Cmd); err != nil {
@@ -193,7 +194,13 @@ func execCmd(request types.RequestJSON) (types.CmdResultJSON, error) {
 	cmd := exec.Command("sh", "-c", "/usr/bin/time -v ./execCmd.sh 2>&1 | grep -E 'Maximum' | awk '{ print $6 }' > mem_usage.txt")
 
 	start := time.Now()
-	timeout := time.After(2*time.Second + 200*time.Millisecond)
+
+	// todo: ホストからタイムアウト指定するようにする
+	if request.Mode == "compile" {
+		timeout = time.After(10 * time.Second)
+	} else {
+		timeout = time.After(2*time.Second + 200*time.Millisecond)
+	}
 
 	if err := cmd.Start(); err != nil {
 		return cmdResult, err
