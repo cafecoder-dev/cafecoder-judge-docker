@@ -18,13 +18,14 @@ import (
 
 const (
 	ContainerPort = "0.0.0.0:8887"
-	MaxFileSize = 200000000 // 200MB
+	MaxFileSize   = 200000000 // 200MB
 )
 
 func main() {
 	listen, err := net.Listen("tcp", ContainerPort) //from backend server
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
 	}
 
 	for {
@@ -87,7 +88,7 @@ func makeSh(cmd string) error {
 // 提出されたコードを実行する
 func execCmd(request types.RequestJSON) types.CmdResultJSON {
 	var (
-		err error
+		err       error
 		cmdResult types.CmdResultJSON
 	)
 	cmdResult.SessionID = request.SessionID
