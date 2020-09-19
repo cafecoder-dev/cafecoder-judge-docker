@@ -46,6 +46,8 @@ RUN \
     chmod -R 777 /home && \
     mkdir Main -m 777
 
+ENV TZ Asia/Tokyo
+
 COPY vendor /vendor
 COPY key.json .
 COPY .env .
