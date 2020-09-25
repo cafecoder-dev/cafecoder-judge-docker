@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
@@ -197,7 +196,7 @@ func execCmd(request types.RequestJSON) (types.CmdResultJSON, error) {
 
 	// todo: ホストからタイムアウト指定するようにする
 	if request.Mode == "compile" {
-		timeout = time.After(10 * time.Second)
+		timeout = time.After(20 * time.Second)
 	} else {
 		timeout = time.After(2*time.Second + 200*time.Millisecond)
 	}
