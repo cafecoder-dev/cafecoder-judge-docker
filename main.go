@@ -35,7 +35,6 @@ func main() {
 		if err != nil {
 			continue //continue to receive request
 		}
-		defer cnct.Close()
 
 		go func() {
 			var (
@@ -43,13 +42,13 @@ func main() {
 				ctx     context.Context = context.Background()
 			)
 
-			json.NewDecoder(cnct).Decode(&request)
+			_ = json.NewDecoder(cnct).Decode(&request)
 
 			cmdResult := types.CmdResultJSON{
 				SessionID: request.SessionID,
 			}
 
-			os.Chmod("/", 0777)
+			_ = os.Chmod("/", 0777)
 
 			switch request.Mode {
 			case "compile":
@@ -83,7 +82,7 @@ func main() {
 			}
 			defer conn.Close()
 
-			conn.Write(b)
+			_, _ = conn.Write(b)
 		}()
 	}
 }
@@ -95,11 +94,11 @@ func createSh(cmd string) error {
 		return err
 	}
 
-	f.WriteString("#!/bin/bash\n")
-	f.WriteString("export PATH=$PATH:/usr/local/go/bin\n")
-	f.WriteString("export PATH=\"$HOME/.cargo/bin:$PATH\"\n")
-	f.WriteString(cmd + "\n")
-	f.WriteString("echo $? > exit_code.txt")
+	_, _ = f.WriteString("#!/bin/bash\n")
+	_, _ = f.WriteString("export PATH=$PATH:/usr/local/go/bin\n")
+	_, _ = f.WriteString("export PATH=\"$HOME/.cargo/bin:$PATH\"\n")
+	_, _ = f.WriteString(cmd + "\n")
+	_, _ = f.WriteString("echo $? > exit_code.txt")
 
 	f.Close()
 
@@ -110,13 +109,13 @@ func createSh(cmd string) error {
 		}
 	}
 
-	os.Chmod("execCmd.sh", 0777)
+	_ = os.Chmod("execCmd.sh", 0777)
 
 	return nil
 }
 
 func tryTestcase(ctx context.Context, request types.RequestJSON) (types.CmdResultJSON, error) {
-	submitIDint64, err := strconv.ParseInt(request.SessionID, 10, 64)
+	submitIDint64, _ := strconv.ParseInt(request.SessionID, 10, 64)
 
 	testcaseInput, testcaseOutput, err := gcplib.DownloadTestcase(ctx, request.Problem.UUID, request.Testcase.Name)
 	if err != nil {
@@ -126,7 +125,7 @@ func tryTestcase(ctx context.Context, request types.RequestJSON) (types.CmdResul
 	testcaseResults := types.TestcaseResultsGORM{SubmitID: submitIDint64, TestcaseID: request.Testcase.TestcaseID}
 
 	file, _ := os.Create("./testcase.txt")
-	file.Write(testcaseInput)
+	_, _ = file.Write(testcaseInput)
 	file.Close()
 
 	res, err := execCmd(request)
@@ -211,7 +210,9 @@ func execCmd(request types.RequestJSON) (types.CmdResultJSON, error) {
 	select {
 	case <-timeout:
 		// timeout からシグナルが送られてきたらプロセスをキルする
-		cmd.Process.Kill()
+		if err := cmd.Process.Kill(); err != nil {
+			return cmdResult, err
+		}
 	case err := <-done:
 		if err != nil {
 			return cmdResult, err
