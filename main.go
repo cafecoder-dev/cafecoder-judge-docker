@@ -55,26 +55,35 @@ func main() {
 			case "compile":
 				cmdResult, err = execCmd(request)
 				if err != nil {
-					cmdResult.ErrMessage += base64.StdEncoding.EncodeToString([]byte(err.Error())) + "\n"
+					cmdResult.ErrMessage = base64.StdEncoding.EncodeToString([]byte(err.Error())) + "\n"
 				}
+
 			case "judge":
 				cmdResult, err = tryTestcase(ctx, request)
 				if err != nil {
-					cmdResult.ErrMessage += base64.StdEncoding.EncodeToString([]byte(err.Error())) + "\n"
+					cmdResult.ErrMessage = base64.StdEncoding.EncodeToString([]byte(err.Error())) + "\n"
 					cmdResult.Result = false
 				}
 
 			case "download":
-				cmdResult = types.CmdResultJSON{SessionID: request.SessionID, Result: true}
+				cmdResult = types.CmdResultJSON{SessionID: request.SessionID}
 				if err = gcplib.DownloadSourceCode(ctx, request.CodePath, request.Filename); err != nil {
-					cmdResult.ErrMessage += base64.StdEncoding.EncodeToString([]byte(err.Error())) + "\n"
+					cmdResult.ErrMessage = base64.StdEncoding.EncodeToString([]byte(err.Error())) + "\n"
 					cmdResult.Result = false
+				}
+				cmdResult.Result = true
+
+			default:
+				cmdResult = types.CmdResultJSON{
+					SessionID:  request.SessionID,
+					Result:     false,
+					ErrMessage: base64.StdEncoding.EncodeToString([]byte("invalid request")),
 				}
 			}
 
 			b, err := json.Marshal(cmdResult)
 			if err != nil {
-				cmdResult.ErrMessage += err.Error() + "\n"
+				cmdResult.ErrMessage = err.Error() + "\n"
 			}
 
 			conn, err := net.Dial("tcp", util.GetHostIP())
