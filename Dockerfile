@@ -56,7 +56,14 @@ RUN \
     # crystal
     curl -sSL https://dist.crystal-lang.org/apt/setup.sh | bash && \
     apt install crystal
-
+    # Perl install
+    wget https://www.cpan.org/src/5.0/perl-5.32.0.tar.gz
+    tar -xzf perl-5.32.0.tar.gz
+    cd perl-5.32.0
+    ./Configure -des -Dprefix=$HOME/localperl
+    make
+    make test
+    make install
 
 
 
