@@ -40,7 +40,22 @@ RUN \
     apt-get update && apt-get install rakudo-pkg && \
     /opt/rakudo-pkg/bin/add-rakudo-to-path && \
     source /home/earlgray/.profile && \
-    
+    # Ruby install
+    git clone https://github.com/sstephenson/rbenv.git ~/.rbenv && \
+    echo 'export PATH="$HOME/.rbenv/bin:$PATH"' >> ~/.profile && \
+    echo 'eval "$(rbenv init -)"' >> ~/.profile && \
+    exec $SHELL -l && \
+    git clone https://github.com/sstephenson/ruby-build.git ~/.rbenv/plugins/ruby-build && \
+    rbenv install 2.7.2 && rbenv global 2.7.2 && \
+    # Kotlin install
+    curl -s https://get.sdkman.io | bash && \
+    source "/home/earlgray/.sdkman/bin/sdkman-init.sh" && \
+    sdk install kotlin && \
+    # Fortran install
+    apt install gfortran-10 -y
+
+
+
 
 
     
