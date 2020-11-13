@@ -55,7 +55,7 @@ RUN \
     apt install gfortran-10 -y && \
     # crystal
     curl -sSL https://dist.crystal-lang.org/apt/setup.sh | bash && \
-    apt install crystal
+    apt install crystal && \
     # Perl install
     wget https://www.cpan.org/src/5.0/perl-5.32.0.tar.gz && \
     tar -xzf perl-5.32.0.tar.gz && \
