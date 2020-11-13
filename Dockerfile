@@ -63,7 +63,7 @@ RUN \
     ./Configure -des -Dprefix=$HOME/localperl && \
     make && \
     make test && \
-    make install && \
+    make install
 
 
 
