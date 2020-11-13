@@ -6,6 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN \
     apt update && \
     apt install software-properties-common apt-transport-https dirmngr curl wget time iproute2 build-essential sudo unzip -y && \
+    touch ~/.profile && \
     # C#(mono) install
     apt install gnupg ca-certificates -y && \
     yes | apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF && \
@@ -26,12 +27,22 @@ RUN \
     # Python3 install
     apt install python3 -y && \
     # go install
-    wget https://golang.org/dl/go1.15.2.linux-amd64.tar.gz && \
-    tar -C /usr/local -xzf go1.15.2.linux-amd64.tar.gz && \
+    wget https://golang.org/dl/go1.15.5.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf go1.15.5.linux-amd64.tar.gz && \
     # Rust install
     curl https://sh.rustup.rs -sSf | sh -s -- -y && \
     # Nim install
-    curl https://nim-lang.org/choosenim/init.sh -sSf | sh -s -- -y
+    curl https://nim-lang.org/choosenim/init.sh -sSf | sh -s -- -y && \
+    echo -e 'export PATH=/root/.nimble/bin:$PATH\n' >> ~/.profile && \
+    # Raku install
+    apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 379CE192D401AB61 && \
+    echo "deb https://dl.bintray.com/nxadm/rakudo-pkg-debs `lsb_release -cs` main" | tee -a /etc/apt/sources.list.d/rakudo-pkg.list && \
+    apt-get update && apt-get install rakudo-pkg && \
+    /opt/rakudo-pkg/bin/add-rakudo-to-path && \
+    source /home/earlgray/.profile && \
+    
+
+
     
 # install external libraries
 RUN \
@@ -50,7 +61,6 @@ ENV TZ Asia/Tokyo
 
 COPY vendor /vendor
 COPY key.json .
-COPY .env .
 COPY gcplib /gcplib
 COPY util /util
 COPY go.mod .
