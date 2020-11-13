@@ -52,8 +52,10 @@ RUN \
     source "/home/earlgray/.sdkman/bin/sdkman-init.sh" && \
     sdk install kotlin && \
     # Fortran install
-    apt install gfortran-10 -y
-
+    apt install gfortran-10 -y && \
+    # crystal
+    curl -sSL https://dist.crystal-lang.org/apt/setup.sh | bash && \
+    apt install crystal
 
 
 
