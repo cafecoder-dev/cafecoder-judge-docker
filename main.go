@@ -222,7 +222,7 @@ func execCmd(request types.RequestJSON) (types.CmdResultJSON, error) {
 	case <-timeout:
 		// timeout からシグナルが送られてきたらプロセスをキルする
 		if err := cmd.Process.Kill(); err != nil {
-			return types.CmdResultJSON{}, err
+			return cmdResult, err
 		}
 	case err := <-done:
 		if err != nil {
