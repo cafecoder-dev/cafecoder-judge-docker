@@ -54,26 +54,35 @@ func main() {
 			case "compile":
 				cmdResult, err = execCmd(request)
 				if err != nil {
-					cmdResult.ErrMessage += base64.StdEncoding.EncodeToString([]byte(err.Error())) + "\n"
+					cmdResult.ErrMessage = base64.StdEncoding.EncodeToString([]byte(err.Error())) + "\n"
 				}
+
 			case "judge":
 				cmdResult, err = tryTestcase(ctx, request)
 				if err != nil {
-					cmdResult.ErrMessage += base64.StdEncoding.EncodeToString([]byte(err.Error())) + "\n"
+					cmdResult.ErrMessage = base64.StdEncoding.EncodeToString([]byte(err.Error())) + "\n"
 					cmdResult.Result = false
 				}
 
 			case "download":
-				cmdResult = types.CmdResultJSON{SessionID: request.SessionID, Result: true}
+				cmdResult = types.CmdResultJSON{SessionID: request.SessionID}
 				if err = gcplib.DownloadSourceCode(ctx, request.CodePath, request.Filename); err != nil {
-					cmdResult.ErrMessage += base64.StdEncoding.EncodeToString([]byte(err.Error())) + "\n"
+					cmdResult.ErrMessage = base64.StdEncoding.EncodeToString([]byte(err.Error())) + "\n"
 					cmdResult.Result = false
+				}
+				cmdResult.Result = true
+
+			default:
+				cmdResult = types.CmdResultJSON{
+					SessionID:  request.SessionID,
+					Result:     false,
+					ErrMessage: base64.StdEncoding.EncodeToString([]byte("invalid request")),
 				}
 			}
 
 			b, err := json.Marshal(cmdResult)
 			if err != nil {
-				cmdResult.ErrMessage += err.Error() + "\n"
+				cmdResult.ErrMessage = err.Error() + "\n"
 			}
 
 			conn, err := net.Dial("tcp", util.GetHostIP())
@@ -83,6 +92,8 @@ func main() {
 			defer conn.Close()
 
 			_, _ = conn.Write(b)
+
+			conn.Close()
 		}()
 	}
 }
@@ -133,7 +144,7 @@ func tryTestcase(ctx context.Context, request types.RequestJSON) (types.CmdResul
 		return types.CmdResultJSON{}, err
 	}
 
-	testcaseResults.Status, err = judging(res, string(testcaseOutput))
+	testcaseResults.Status, err = judging(request, res, string(testcaseOutput))
 	if err != nil {
 		return types.CmdResultJSON{}, err
 	}
@@ -148,14 +159,14 @@ func tryTestcase(ctx context.Context, request types.RequestJSON) (types.CmdResul
 	return res, nil
 }
 
-func judging(cmdres types.CmdResultJSON, testcaseOutput string) (string, error) {
+func judging(req types.RequestJSON, cmdres types.CmdResultJSON, testcaseOutput string) (string, error) {
 	if cmdres.IsPLE {
 		return "PLE", nil
 	}
 	if !cmdres.Result {
 		return "RE", nil
 	}
-	if cmdres.Time > 2000 {
+	if cmdres.Time > req.TimeLimit {
 		return "TLE", nil
 	}
 	userOutput, err := ioutil.ReadFile("userStdout.txt")
@@ -195,9 +206,9 @@ func execCmd(request types.RequestJSON) (types.CmdResultJSON, error) {
 
 	// todo: ホストからタイムアウト指定するようにする
 	if request.Mode == "compile" {
-		timeout = time.After(10 * time.Second)
+		timeout = time.After(20 * time.Second)
 	} else {
-		timeout = time.After(2*time.Second + 200*time.Millisecond)
+		timeout = time.After(time.Duration(request.TimeLimit)*time.Millisecond + 200*time.Millisecond)
 	}
 
 	if err := cmd.Start(); err != nil {

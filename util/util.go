@@ -59,13 +59,13 @@ func GetFileSize(name string) int64 {
 	return info.Size()
 }
 
-// Windows 環境だとホストIPがかわることがあったからそれを読み取ってくるようにした
-// しかし動かないどうして
+// container のホストの IP を引っ張ってくる
 func GetHostIP() string {
 	r, _ := exec.Command("sh", "-c", "ip route | awk 'NR==1 {print $3}'").Output()
 	return strings.TrimRight(string(r), "\n") + ":3344"
 }
 
+// time -> string
 func TimeToString(t time.Time) string {
 	return t.Format("2006-01-02 15:04:05")
 }
