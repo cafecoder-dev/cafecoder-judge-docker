@@ -1,12 +1,20 @@
 FROM ubuntu:20.04
 
 ENV DEBIAN_FRONTEND=noninteractive
+SHELL ["/bin/bash", "-c"]
 
 # install compilers
 RUN \
     apt update && \
     apt install software-properties-common apt-transport-https dirmngr curl wget time iproute2 build-essential sudo unzip git -y && \
     touch ~/.profile
+
+# Raku install
+RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 379CE192D401AB61 && \
+    echo "deb https://dl.bintray.com/nxadm/rakudo-pkg-debs `lsb_release -cs` main" | tee -a /etc/apt/sources.list.d/rakudo-pkg.list && \
+    apt-get update && apt-get install apt-utils && apt-get install rakudo-pkg && \
+    /opt/rakudo-pkg/bin/add-rakudo-to-path
+    #source ~/.profile
    
 # C#(mono) install
 RUN apt install gnupg ca-certificates -y && \
@@ -35,21 +43,16 @@ RUN apt install pypy3 -y
 
 # go install
 RUN wget https://golang.org/dl/go1.15.5.linux-amd64.tar.gz && \
-    tar -C /usr/local -xzf go1.15.5.linux-amd64.tar.gz
+    tar -C /usr/local -xzf go1.15.5.linux-amd64.tar.gz && \
+    echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.profile
     
 # Rust install
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y && \
+    source $HOME/.cargo/env
 
 # Nim install
 RUN curl https://nim-lang.org/choosenim/init.sh -sSf | sh -s -- -y && \
     echo 'export PATH=/root/.nimble/bin:$PATH' >> ~/.profile
-
-# Raku install
-RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 379CE192D401AB61 && \
-    echo "deb https://dl.bintray.com/nxadm/rakudo-pkg-debs `lsb_release -cs` main" | tee -a /etc/apt/sources.list.d/rakudo-pkg.list && \
-    apt-get update && apt-get install apt-utils && apt-get install rakudo-pkg && \
-    /opt/rakudo-pkg/bin/add-rakudo-to-path
-    #source ~/.profile
     
 # Ruby install
 RUN apt install make libffi-dev openssl libssl-dev zlib1g-dev -y && \
@@ -62,11 +65,9 @@ RUN apt install make libffi-dev openssl libssl-dev zlib1g-dev -y && \
 
 # Kotlin install
 RUN apt install zip unzip -y && \
-    curl -s https://get.sdkman.io | bash
-
-SHELL ["/bin/bash", "-c"]
-
-RUN source "/root/.sdkman/bin/sdkman-init.sh" && \
+    curl -s https://get.sdkman.io | bash && \
+    echo 'export SDKMAN_DIR="~/.sdkman"' >> ~/.profile && \
+    echo '[[ -s "~/.sdkman/bin/sdkman-init.sh" ]] && source "~/.sdkman/bin/sdkman-init.sh"' >> ~/.profile && \
     sdk install kotlin
 
 # Fortran install
