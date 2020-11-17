@@ -19,6 +19,9 @@ func GetFileNum(name string) (int, error) {
 	defer fp.Close()
 
 	buf, err := ioutil.ReadAll(fp)
+	if err != nil {
+		return 0, err
+	}
 
 	tmp := strings.Replace(string(buf), "\n", "", -1)
 
@@ -38,9 +41,7 @@ func GetFileStrBase64(name string) (string, error) {
 	}
 	defer stderrFp.Close()
 
-	buf := make([]byte, 65536)
-
-	buf, err = ioutil.ReadAll(stderrFp)
+	buf, err := ioutil.ReadAll(stderrFp)
 	if err != nil {
 		return "", err
 	}
