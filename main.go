@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/cafecoder-dev/cafecoder-container-client/gcplib"
@@ -130,7 +131,7 @@ func tryTestcase(ctx context.Context, request types.RequestJSON) (types.CmdResul
 
 	testcaseInput, testcaseOutput, err := gcplib.DownloadTestcase(ctx, request.Problem.UUID, request.Testcase.Name)
 	if err != nil {
-		return types.CmdResultJSON{}, err
+		return types.CmdResultJSON{SessionID: request.SessionID}, err
 	}
 
 	testcaseResults := types.TestcaseResultsGORM{SubmitID: submitIDint64, TestcaseID: request.Testcase.TestcaseID}
@@ -141,12 +142,12 @@ func tryTestcase(ctx context.Context, request types.RequestJSON) (types.CmdResul
 
 	res, err := execCmd(request)
 	if err != nil {
-		return types.CmdResultJSON{}, err
+		return types.CmdResultJSON{SessionID: request.SessionID}, err
 	}
 
 	testcaseResults.Status, err = judging(request, res, string(testcaseOutput))
 	if err != nil {
-		return types.CmdResultJSON{}, err
+		return types.CmdResultJSON{SessionID: request.SessionID}, err
 	}
 
 	testcaseResults.ExecutionTime = res.Time
@@ -222,6 +223,9 @@ func execCmd(request types.RequestJSON) (types.CmdResultJSON, error) {
 	case <-timeout:
 		// timeout からシグナルが送られてきたらプロセスをキルする
 		if err := cmd.Process.Kill(); err != nil {
+			return cmdResult, err
+		}
+		if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL); err != nil {
 			return cmdResult, err
 		}
 	case err := <-done:
