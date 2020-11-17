@@ -221,7 +221,8 @@ func execCmd(request types.RequestJSON) (types.CmdResultJSON, error) {
 
 	select {
 	case <-timeout:
-		// timeout からシグナルが送られてきたらプロセスをキルする
+		// timeout からシグナルが送られてきたら子プロセスごと全てキルする
+		// http://makiuchi-d.github.io/2020/05/10/go-kill-child-process.ja.html
 		if err := cmd.Process.Kill(); err != nil {
 			return cmdResult, err
 		}
