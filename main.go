@@ -202,6 +202,7 @@ func execCmd(request types.RequestJSON) (types.CmdResultJSON, error) {
 	}
 
 	cmd := exec.Command("sh", "-c", "/usr/bin/time -v ./execCmd.sh 2>&1 | grep -E 'Maximum' | awk '{ print $6 }' > mem_usage.txt")
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	start := time.Now()
 
