@@ -45,10 +45,17 @@ RUN apt install pypy3 -y
 RUN wget https://golang.org/dl/go1.15.5.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go1.15.5.linux-amd64.tar.gz && \
     echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.profile
+
+ENV USER=$USER
     
 # Rust install
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y && \
-    source $HOME/.cargo/env
+    source $HOME/.cargo/env && \
+    cargo new rust_workspace && \
+    cd rust_workspace &&\
+    wget https://raw.githubusercontent.com/cafecoder-dev/language-update/20.10/Rust/Cargo.toml -O Cargo.toml && \
+    cargo build --release && \
+    cd /
 
 # Nim install
 RUN curl https://nim-lang.org/choosenim/init.sh -sSf | sh -s -- -y && \
@@ -66,8 +73,9 @@ RUN apt install make libffi-dev openssl libssl-dev zlib1g-dev -y && \
 # Kotlin install
 RUN apt install zip unzip -y && \
     curl -s https://get.sdkman.io | bash && \
-    echo 'export SDKMAN_DIR="~/.sdkman"' >> ~/.profile && \
-    echo '[[ -s "~/.sdkman/bin/sdkman-init.sh" ]] && source "~/.sdkman/bin/sdkman-init.sh"' >> ~/.profile && \
+    bash && \
+    echo 'source "/root/.sdkman/bin/sdkman-init.sh"' >> ~/.profile && \
+    source ~/.profile && \
     sdk install kotlin
 
 # Fortran install
