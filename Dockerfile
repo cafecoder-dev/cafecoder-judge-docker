@@ -36,10 +36,14 @@ RUN apt-get install g++-10 gcc-10 -y
 RUN apt install default-jdk -y
 
 # Python3 install
-RUN apt install python3 -y
+RUN apt install python3.9 -y
 
 # Pypy3 install
-RUN apt install pypy3 -y
+RUN cd /opt && \
+    wget https://downloads.python.org/pypy/pypy3.7-v7.3.3-linux64.tar.bz2 && \
+    tar xf pypy3.7-v7.3.3-linux64.tar.bz2 && \
+    cd /bin && \
+    ln -s /opt/pypy3.7-v7.3.3-linux64/bin/pypy3 pypy3
 
 # go install
 RUN wget https://golang.org/dl/go1.15.5.linux-amd64.tar.gz && \
